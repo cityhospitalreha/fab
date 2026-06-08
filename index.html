@@ -94,9 +94,7 @@ html,body{height:100%;background:var(--bg);font-family:"Hiragino Kaku Gothic Pro
 /* RESULT */
 #result{padding:0 1rem;}
 .res-hero{width:100%;max-width:480px;border-radius:0 0 16px 16px;padding:1.75rem 1.25rem 1.5rem;text-align:center;color:#fff;margin-bottom:1rem;}
-.res-hero.hi{background:var(--green);}
-.res-hero.mid{background:var(--amber);}
-.res-hero.lo{background:var(--red);}
+.res-hero{background:var(--accent);}
 .res-ini{font-size:.82rem;opacity:.85;margin-bottom:.25rem;}
 .res-big{font-size:4.5rem;font-weight:700;line-height:1;}
 .res-of{font-size:.9rem;opacity:.75;margin-bottom:.3rem;}
@@ -114,6 +112,25 @@ html,body{height:100%;background:var(--bg);font-family:"Hiragino Kaku Gothic Pro
 .act-btn{width:100%;padding:14px;border-radius:11px;font-family:inherit;font-size:.95rem;font-weight:700;cursor:pointer;border:none;}
 .act-btn.primary{background:var(--accent);color:#fff;}
 .act-btn.ghost{background:var(--white);color:var(--ink);border:1.5px solid var(--line);}
+
+/* WORD COUNTER */
+.wc-box{background:var(--bg);border-radius:8px;padding:.45rem .65rem;display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin:.15rem 0;}
+.wc-display{display:flex;align-items:baseline;gap:.2rem;}
+.wc-num{font-size:1.6rem;font-weight:700;color:var(--accent);line-height:1;min-width:2ch;text-align:right;}
+.wc-unit{font-size:.7rem;color:var(--muted);}
+.wc-btns{display:flex;gap:.4rem;align-items:center;}
+.wc-btn{width:36px;height:36px;border-radius:8px;border:1.5px solid var(--line);background:var(--white);font-size:1.1rem;font-weight:700;color:var(--ink);cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.wc-btn.plus{background:var(--accent);border-color:var(--accent);color:#fff;font-size:1.3rem;}
+.wc-btn.reset{font-size:.7rem;color:var(--muted);width:auto;padding:0 8px;}
+
+/* NORM TABLE */
+.norm-wrap{width:100%;max-width:480px;margin-bottom:.6rem;}
+.norm-lbl{font-size:.65rem;font-weight:700;letter-spacing:.1em;color:var(--muted);margin-bottom:.3rem;}
+.norm-table{width:100%;border-collapse:collapse;background:var(--white);border-radius:10px;overflow:hidden;font-size:.72rem;}
+.norm-table th{background:var(--bg);color:var(--muted);font-weight:700;padding:.35rem .5rem;text-align:center;border-bottom:1px solid var(--line);}
+.norm-table td{padding:.38rem .5rem;text-align:center;border-bottom:1px solid var(--line);color:var(--ink);}
+.norm-table tr:last-child td{border-bottom:none;}
+.norm-table td:first-child{text-align:left;font-weight:600;}
 </style>
 </head>
 <body>
@@ -151,6 +168,13 @@ html,body{height:100%;background:var(--bg);font-family:"Hiragino Kaku Gothic Pro
     <div class="res-dt" id="r-dt"></div>
   </div>
   <div id="r-det" style="width:100%;max-width:480px;"></div>
+  <div class="norm-wrap">
+    <div class="norm-lbl">年齢別基準値（Dubois 2000）</div>
+    <table class="norm-table">
+      <thead><tr><th>年齢</th><th>FAB合計（平均±SD）</th></tr></thead>
+      <tbody id="norm-body"></tbody>
+    </table>
+  </div>
   <div class="act-col">
     <button class="act-btn primary" onclick="newExam()">続けて検査</button>
     <button class="act-btn ghost" onclick="goHome()">ホームへ</button>
@@ -184,6 +208,7 @@ const SECS = [
        '→ さらに10秒間黙っていたら「かで始まる単語なら何でもいいですから」と刺激',
        '同じ単語の繰り返し・変形（傘、傘の柄など）・人名・固有名詞は正答としない',
      ],
+     counter:true,
      guide:['10語以上 → 3点','6〜9語 → 2点','3〜5語 → 1点','2語以下 → 0点']},
   ]},
   { label:'③  運動系列（運動プログラミング）', items:[
@@ -331,6 +356,36 @@ function makePartialRow(item){
     div.appendChild(guide);
   }
 
+  // カウンター（c2専用）
+  if(item.counter){
+    const wcBox=document.createElement('div'); wcBox.className='wc-box';
+    const wcDisp=document.createElement('div'); wcDisp.className='wc-display';
+    const wcNum=document.createElement('span'); wcNum.className='wc-num'; wcNum.id='wc-'+item.id; wcNum.textContent='0';
+    const wcUnit=document.createElement('span'); wcUnit.className='wc-unit'; wcUnit.textContent='語';
+    wcDisp.appendChild(wcNum); wcDisp.appendChild(wcUnit);
+    const wcBtns=document.createElement('div'); wcBtns.className='wc-btns';
+    const wcMinus=document.createElement('button'); wcMinus.className='wc-btn'; wcMinus.textContent='−';
+    const wcPlus=document.createElement('button'); wcPlus.className='wc-btn plus'; wcPlus.textContent='+';
+    const wcReset=document.createElement('button'); wcReset.className='wc-btn reset'; wcReset.textContent='リセット';
+    wcMinus.onclick=()=>{
+      const el=document.getElementById('wc-'+item.id);
+      const v=Math.max(0,parseInt(el.textContent)-1); el.textContent=v;
+      autoScoreFromCount(item.id,v,item.guide);
+    };
+    wcPlus.onclick=()=>{
+      const el=document.getElementById('wc-'+item.id);
+      const v=parseInt(el.textContent)+1; el.textContent=v;
+      autoScoreFromCount(item.id,v,item.guide);
+    };
+    wcReset.onclick=()=>{
+      const el=document.getElementById('wc-'+item.id); el.textContent='0';
+      autoScoreFromCount(item.id,0,item.guide);
+    };
+    wcBtns.appendChild(wcMinus); wcBtns.appendChild(wcPlus); wcBtns.appendChild(wcReset);
+    wcBox.appendChild(wcDisp); wcBox.appendChild(wcBtns);
+    div.appendChild(wcBox);
+  }
+
   // スコアボタン行
   const row=document.createElement('div'); row.className='score-row-fab';
   const val=document.createElement('div'); val.className='partial-val'; val.id='pv-'+item.id; val.textContent='− / 3'; row.appendChild(val);
@@ -341,6 +396,11 @@ function makePartialRow(item){
   }
   row.appendChild(btns); div.appendChild(row);
   return div;
+}
+
+function autoScoreFromCount(id,count,guide){
+  const v=count>=10?3:count>=6?2:count>=3?1:0;
+  setPartial(id,v,guide);
 }
 
 function setPartial(id,val,guide){
@@ -377,14 +437,20 @@ function finish(){
 
 function quit(){if(confirm('中断しますか？'))show('home');}
 
+
+const NORM=[
+  {age:'20〜29歳', mean:16.7, sd:0.8},
+  {age:'30〜39歳', mean:17.0, sd:0.8},
+  {age:'40〜49歳', mean:16.1, sd:1.0},
+  {age:'50〜59歳', mean:15.3, sd:1.4},
+  {age:'60〜69歳', mean:14.6, sd:0.9},
+  {age:'70〜79歳', mean:14.4, sd:1.3},
+];
 function buildResult(rec){
-  let cls='lo',judge='前頭葉機能の著明な低下';
-  if(rec.total>=13){cls='hi';judge='正常範囲内';}
-  else if(rec.total>=10){cls='mid';judge='軽度の前頭葉機能低下が疑われます';}
-  const hero=document.getElementById('r-hero'); hero.className='res-hero '+cls;
+  const hero=document.getElementById('r-hero'); hero.className='res-hero';
   document.getElementById('r-ini').textContent=rec.ini;
   document.getElementById('r-big').textContent=rec.total;
-  document.getElementById('r-judge').textContent=judge;
+  document.getElementById('r-judge').textContent='';
   document.getElementById('r-dt').textContent=fmtDT(rec.dt);
   const det=document.getElementById('r-det'); det.innerHTML='';
   SECS.forEach(sec=>{
@@ -392,12 +458,18 @@ function buildResult(rec){
     const lbl=document.createElement('div'); lbl.className='det-sec-lbl'; lbl.textContent=sec.label; block.appendChild(lbl);
     sec.items.forEach(item=>{
       const v=rec.sc[item.id]||0, max=item.max;
-      const scls=v===max?'hi':v>0?'mid':'lo';
       const row=document.createElement('div'); row.className='det-row';
-      row.innerHTML=`<span class="det-q">${h(item.q.slice(0,30))}</span><span class="det-sc ${scls}">${v} / ${max}</span>`;
+      row.innerHTML=`<span class="det-q">${h(item.q.slice(0,30))}</span><span class="det-sc">${v} / ${max}</span>`;
       block.appendChild(row);
     });
     det.appendChild(block);
+  });
+  // 基準値表
+  const nb=document.getElementById('norm-body'); nb.innerHTML='';
+  NORM.forEach(nr=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${nr.age}</td><td>${nr.mean.toFixed(1)} ± ${nr.sd.toFixed(1)}</td>`;
+    nb.appendChild(tr);
   });
 }
 
@@ -406,10 +478,10 @@ function renderLog(){
   if(!log.length){el.innerHTML='<div class="log-empty">記録なし</div>';return;}
   el.innerHTML='';
   log.forEach(rec=>{
-    const s=rec.total, cls=s>=13?'hi':s>=10?'mid':'lo', tagCls='tag-'+(s>=13?'hi':s>=10?'mid':'lo'), tagTxt=s>=13?'正常':s>=10?'軽度低下':'著明な低下';
+    const s=rec.total;
     const row=document.createElement('div'); row.className='log-row';
     row.onclick=()=>{buildResult(rec);show('result');};
-    row.innerHTML=`<div class="log-left"><div class="ini">${h(rec.ini)}</div><div class="dt">${fmtDT(rec.dt)}</div></div><div class="log-right"><div class="log-sc ${cls}">${s}<span style="font-size:.68rem;font-weight:400;color:var(--muted)"> /18</span></div><div class="log-tag ${tagCls}">${tagTxt}</div></div>`;
+    row.innerHTML=`<div class="log-left"><div class="ini">${h(rec.ini)}</div><div class="dt">${fmtDT(rec.dt)}</div></div><div class="log-right"><div class="log-sc">${s}<span style="font-size:.68rem;font-weight:400;color:var(--muted)"> /18</span></div></div>`;
     el.appendChild(row);
   });
 }
