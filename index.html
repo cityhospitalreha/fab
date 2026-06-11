@@ -123,6 +123,20 @@ html,body{height:100%;background:var(--bg);font-family:"Hiragino Kaku Gothic Pro
 .wc-btn.plus{background:var(--accent);border-color:var(--accent);color:#fff;font-size:1.3rem;}
 .wc-btn.reset{font-size:.7rem;color:var(--muted);width:auto;padding:0 8px;}
 
+/* TIMER (c2) */
+.timer-box{background:var(--bg);border-radius:10px;padding:.55rem .75rem;margin:.15rem 0 .3rem;display:flex;align-items:center;justify-content:space-between;gap:.5rem;}
+.timer-display{display:flex;align-items:baseline;gap:.15rem;}
+.timer-num{font-size:2.2rem;font-weight:700;line-height:1;min-width:2.2ch;text-align:right;transition:color .2s;}
+.timer-num.running{color:var(--accent);}
+.timer-num.done{color:var(--green);}
+.timer-num.urgent{color:var(--red);}
+.timer-unit{font-size:.7rem;color:var(--muted);}
+.timer-btns{display:flex;gap:.4rem;}
+.timer-btn{height:36px;padding:0 14px;border-radius:8px;border:1.5px solid var(--line);background:var(--white);font-family:inherit;font-size:.78rem;font-weight:700;color:var(--ink);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .12s;}
+.timer-btn.start{background:var(--accent);border-color:var(--accent);color:#fff;}
+.timer-btn.stop{background:var(--amber-lt);border-color:var(--amber);color:var(--amber);}
+.timer-btn.reset-t{color:var(--muted);}
+
 /* NORM TABLE */
 .norm-wrap{width:100%;max-width:480px;margin-bottom:.6rem;}
 .norm-lbl{font-size:.65rem;font-weight:700;letter-spacing:.1em;color:var(--muted);margin-bottom:.3rem;}
@@ -282,6 +296,53 @@ const SECS = [
 
 let sc={}, session=null, log=[];
 
+// ── タイマー（c2用）──────────────────────────
+let timerInterval=null, timerSec=60;
+function timerStart(){
+  if(timerInterval) return; // 二重起動防止
+  const numEl=document.getElementById('timer-num');
+  const startBtn=document.getElementById('timer-start');
+  const stopBtn=document.getElementById('timer-stop');
+  if(!numEl) return;
+  startBtn.style.display='none'; stopBtn.style.display='flex';
+  numEl.className='timer-num running';
+  timerInterval=setInterval(()=>{
+    timerSec--;
+    numEl.textContent=timerSec;
+    if(timerSec<=10) numEl.className='timer-num urgent';
+    if(timerSec<=0){
+      clearInterval(timerInterval); timerInterval=null;
+      numEl.textContent='0'; numEl.className='timer-num done';
+      stopBtn.style.display='none'; startBtn.style.display='flex';
+      startBtn.textContent='もう一度'; startBtn.style.opacity='.55';
+      startBtn.disabled=true;
+    }
+  },1000);
+}
+function timerStop(){
+  clearInterval(timerInterval); timerInterval=null;
+  const numEl=document.getElementById('timer-num');
+  const startBtn=document.getElementById('timer-start');
+  const stopBtn=document.getElementById('timer-stop');
+  if(!numEl) return;
+  numEl.className='timer-num';
+  stopBtn.style.display='none'; startBtn.style.display='flex';
+  startBtn.textContent='再開';
+}
+function timerReset(){
+  clearInterval(timerInterval); timerInterval=null;
+  timerSec=60;
+  const numEl=document.getElementById('timer-num');
+  const startBtn=document.getElementById('timer-start');
+  const stopBtn=document.getElementById('timer-stop');
+  if(!numEl) return;
+  numEl.textContent='60'; numEl.className='timer-num';
+  stopBtn.style.display='none';
+  startBtn.style.display='flex'; startBtn.textContent='スタート';
+  startBtn.style.opacity=''; startBtn.disabled=false;
+}
+// ─────────────────────────────────────────────
+
 const STORAGE_KEY='fab_log';
 const RETENTION_DAYS=7;
 
@@ -318,6 +379,7 @@ function startExam(){
 }
 
 function buildExam(){
+  timerReset(); // 前回のタイマーが残らないようリセット
   const body=document.getElementById('ex-body'); body.innerHTML='';
   SECS.forEach(sec=>{
     const lbl=document.createElement('div'); lbl.className='sec-label'; lbl.textContent=sec.label; body.appendChild(lbl);
@@ -354,6 +416,23 @@ function makePartialRow(item){
       guide.appendChild(span);
     });
     div.appendChild(guide);
+  }
+
+  // タイマー（c2専用）
+  if(item.counter){
+    timerReset(); // 画面構築時にリセット
+    const tbox=document.createElement('div'); tbox.className='timer-box';
+    const tDisp=document.createElement('div'); tDisp.className='timer-display';
+    const tNum=document.createElement('span'); tNum.className='timer-num'; tNum.id='timer-num'; tNum.textContent='60';
+    const tUnit=document.createElement('span'); tUnit.className='timer-unit'; tUnit.textContent='秒';
+    tDisp.appendChild(tNum); tDisp.appendChild(tUnit);
+    const tBtns=document.createElement('div'); tBtns.className='timer-btns';
+    const tStart=document.createElement('button'); tStart.className='timer-btn start'; tStart.id='timer-start'; tStart.textContent='スタート'; tStart.onclick=timerStart;
+    const tStop=document.createElement('button'); tStop.className='timer-btn stop'; tStop.id='timer-stop'; tStop.textContent='一時停止'; tStop.style.display='none'; tStop.onclick=timerStop;
+    const tReset=document.createElement('button'); tReset.className='timer-btn reset-t'; tReset.textContent='リセット'; tReset.onclick=timerReset;
+    tBtns.appendChild(tStart); tBtns.appendChild(tStop); tBtns.appendChild(tReset);
+    tbox.appendChild(tDisp); tbox.appendChild(tBtns);
+    div.appendChild(tbox);
   }
 
   // カウンター（c2専用）
