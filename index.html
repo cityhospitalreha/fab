@@ -381,22 +381,16 @@ function _recUI(state){
     startBtn.style.display='none';
     stopBtn.style.display='flex';
     delBtn.style.display='none';
-    const saveBtn=document.getElementById('rec-save');
-    if(saveBtn) saveBtn.style.display='none';
     status.textContent='● 録音中…'; status.className='rec-status recording';
   } else if(state==='stopped'){
     startBtn.style.display='flex'; startBtn.innerHTML='🎙️ 録り直す';
     stopBtn.style.display='none';
     delBtn.style.display='flex';
     status.textContent='録音済み'; status.className='rec-status';
-    const saveBtn=document.getElementById('rec-save');
-    if(saveBtn) saveBtn.style.display='flex';
   } else {
     startBtn.style.display='flex'; startBtn.innerHTML='🎙️ 録音';
     stopBtn.style.display='none';
     delBtn.style.display='none';
-    const saveBtn=document.getElementById('rec-save');
-    if(saveBtn) saveBtn.style.display='none';
     status.textContent=''; status.className='rec-status';
   }
 }
@@ -547,9 +541,8 @@ function makePartialRow(item){
     const rStart=document.createElement('button'); rStart.className='rec-btn rec-start'; rStart.id='rec-start'; rStart.innerHTML='🎙️ 録音'; rStart.onclick=recStart;
     const rStop=document.createElement('button'); rStop.className='rec-btn rec-stop'; rStop.id='rec-stop'; rStop.textContent='■ 停止'; rStop.style.display='none'; rStop.onclick=recStop;
     const rDel=document.createElement('button'); rDel.className='rec-btn rec-del'; rDel.id='rec-del'; rDel.textContent='🗑️ 削除'; rDel.style.display='none'; rDel.onclick=recDelete;
-    const rSave=document.createElement('button'); rSave.className='rec-btn rec-save'; rSave.id='rec-save'; rSave.textContent='💾 保存'; rSave.style.display='none'; rSave.onclick=recSave;
     const rStatus=document.createElement('span'); rStatus.className='rec-status'; rStatus.id='rec-status';
-    rrow.appendChild(rStart); rrow.appendChild(rStop); rrow.appendChild(rDel); rrow.appendChild(rSave); rrow.appendChild(rStatus);
+    rrow.appendChild(rStart); rrow.appendChild(rStop); rrow.appendChild(rDel); rrow.appendChild(rStatus);
     const rAudio=document.createElement('audio'); rAudio.id='rec-audio'; rAudio.className='rec-audio'; rAudio.controls=true; rAudio.style.display='none';
     rbox.appendChild(rrow); rbox.appendChild(rAudio);
     div.appendChild(rbox);
