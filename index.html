@@ -137,6 +137,19 @@ html,body{height:100%;background:var(--bg);font-family:"Hiragino Kaku Gothic Pro
 .timer-btn.stop{background:var(--amber-lt);border-color:var(--amber);color:var(--amber);}
 .timer-btn.reset-t{color:var(--muted);}
 
+/* RECORDER (c2) */
+.rec-box{background:var(--bg);border-radius:10px;padding:.55rem .75rem;margin:.1rem 0 .3rem;display:flex;flex-direction:column;gap:.4rem;}
+.rec-row{display:flex;align-items:center;gap:.4rem;}
+.rec-btn{height:36px;padding:0 14px;border-radius:8px;border:1.5px solid var(--line);background:var(--white);font-family:inherit;font-size:.78rem;font-weight:700;color:var(--ink);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.3rem;transition:all .15s;}
+.rec-btn.rec-start{background:#DC2626;border-color:#DC2626;color:#fff;}
+.rec-btn.rec-stop{background:var(--amber-lt);border-color:var(--amber);color:var(--amber);}
+.rec-btn.rec-del{color:var(--muted);font-size:.72rem;}
+.rec-dot{width:8px;height:8px;border-radius:50%;background:#fff;animation:blink 1s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.2;}}
+.rec-status{font-size:.72rem;color:var(--muted);}
+.rec-status.recording{color:#DC2626;font-weight:700;}
+.rec-audio{width:100%;height:36px;accent-color:var(--accent);}
+
 /* NORM TABLE */
 .norm-wrap{width:100%;max-width:480px;margin-bottom:.6rem;}
 .norm-lbl{font-size:.65rem;font-weight:700;letter-spacing:.1em;color:var(--muted);margin-bottom:.3rem;}
@@ -154,7 +167,10 @@ html,body{height:100%;background:var(--bg);font-family:"Hiragino Kaku Gothic Pro
   <div class="field"><label>イニシャル</label><input id="ini" type="text" placeholder="例：A.T" maxlength="10"></div>
   <div class="field"><label>実施日時</label><input id="dt" type="datetime-local"></div>
   <button class="go-btn" onclick="startExam()">開始</button>
-  <div class="log-hdr">最近の記録（7日間）</div>
+  <div class="log-hdr" style="display:flex;align-items:center;justify-content:space-between;width:100%;max-width:480px;">
+    <span>最近の記録（7日間）</span>
+    <button id="clear-all-btn" onclick="clearAllLog()" style="display:none;background:none;border:none;font-family:inherit;font-size:.68rem;color:var(--red);cursor:pointer;padding:2px 4px;font-weight:600;">全削除</button>
+  </div>
   <div id="log-list"><div class="log-empty">記録なし</div></div>
 </div>
 
@@ -296,7 +312,70 @@ const SECS = [
 
 let sc={}, session=null, log=[];
 
-// ── タイマー（c2用）──────────────────────────
+// ── 録音（c2用）────────────────────────────
+let mediaRecorder=null, audioChunks=[], audioBlob=null, audioURL=null;
+
+function recStart(){
+  if(mediaRecorder && mediaRecorder.state==='recording') return;
+  navigator.mediaDevices.getUserMedia({audio:true}).then(stream=>{
+    audioChunks=[];
+    // iOSはaudio/mp4、それ以外はwebmを試みる
+    const mimeType=MediaRecorder.isTypeSupported('audio/webm')?'audio/webm':'audio/mp4';
+    mediaRecorder=new MediaRecorder(stream,{mimeType});
+    mediaRecorder.ondataavailable=e=>{if(e.data.size>0)audioChunks.push(e.data);};
+    mediaRecorder.onstop=()=>{
+      audioBlob=new Blob(audioChunks,{type:mimeType});
+      if(audioURL) URL.revokeObjectURL(audioURL);
+      audioURL=URL.createObjectURL(audioBlob);
+      const audio=document.getElementById('rec-audio');
+      if(audio){audio.src=audioURL; audio.style.display='block';}
+      stream.getTracks().forEach(t=>t.stop());
+      _recUI('stopped');
+    };
+    mediaRecorder.start();
+    _recUI('recording');
+  }).catch(()=>{
+    alert('マイクへのアクセスが拒否されました。\nブラウザの設定でマイクを許可してください。');
+  });
+}
+
+function recStop(){
+  if(mediaRecorder && mediaRecorder.state==='recording') mediaRecorder.stop();
+}
+
+function recDelete(){
+  recStop();
+  audioChunks=[]; audioBlob=null;
+  if(audioURL){URL.revokeObjectURL(audioURL); audioURL=null;}
+  const audio=document.getElementById('rec-audio');
+  if(audio){audio.src=''; audio.style.display='none';}
+  _recUI('idle');
+}
+
+function _recUI(state){
+  const startBtn=document.getElementById('rec-start');
+  const stopBtn=document.getElementById('rec-stop');
+  const delBtn=document.getElementById('rec-del');
+  const status=document.getElementById('rec-status');
+  if(!startBtn) return;
+  if(state==='recording'){
+    startBtn.style.display='none';
+    stopBtn.style.display='flex';
+    delBtn.style.display='none';
+    status.textContent='● 録音中…'; status.className='rec-status recording';
+  } else if(state==='stopped'){
+    startBtn.style.display='flex'; startBtn.innerHTML='🎙️ 録り直す';
+    stopBtn.style.display='none';
+    delBtn.style.display='flex';
+    status.textContent='録音済み'; status.className='rec-status';
+  } else {
+    startBtn.style.display='flex'; startBtn.innerHTML='🎙️ 録音';
+    stopBtn.style.display='none';
+    delBtn.style.display='none';
+    status.textContent=''; status.className='rec-status';
+  }
+}
+// ─────────────────────────────────────────────
 let timerInterval=null, timerSec=60;
 function timerStart(){
   if(timerInterval) return; // 二重起動防止
@@ -435,6 +514,21 @@ function makePartialRow(item){
     div.appendChild(tbox);
   }
 
+  // 録音（c2専用）
+  if(item.counter){
+    recDelete(); // 画面構築時にリセット
+    const rbox=document.createElement('div'); rbox.className='rec-box';
+    const rrow=document.createElement('div'); rrow.className='rec-row';
+    const rStart=document.createElement('button'); rStart.className='rec-btn rec-start'; rStart.id='rec-start'; rStart.innerHTML='🎙️ 録音'; rStart.onclick=recStart;
+    const rStop=document.createElement('button'); rStop.className='rec-btn rec-stop'; rStop.id='rec-stop'; rStop.textContent='■ 停止'; rStop.style.display='none'; rStop.onclick=recStop;
+    const rDel=document.createElement('button'); rDel.className='rec-btn rec-del'; rDel.id='rec-del'; rDel.textContent='🗑️ 削除'; rDel.style.display='none'; rDel.onclick=recDelete;
+    const rStatus=document.createElement('span'); rStatus.className='rec-status'; rStatus.id='rec-status';
+    rrow.appendChild(rStart); rrow.appendChild(rStop); rrow.appendChild(rDel); rrow.appendChild(rStatus);
+    const rAudio=document.createElement('audio'); rAudio.id='rec-audio'; rAudio.className='rec-audio'; rAudio.controls=true; rAudio.style.display='none';
+    rbox.appendChild(rrow); rbox.appendChild(rAudio);
+    div.appendChild(rbox);
+  }
+
   // カウンター（c2専用）
   if(item.counter){
     const wcBox=document.createElement('div'); wcBox.className='wc-box';
@@ -552,15 +646,43 @@ function buildResult(rec){
   });
 }
 
+function clearAllLog(){
+  if(!confirm('記録をすべて削除しますか？\nこの操作は元に戻せません。')) return;
+  log=[]; saveLog(); renderLog();
+}
+
+function deleteOneLog(ts){
+  if(!confirm('この記録を削除しますか？')) return;
+  log=log.filter(r=>r.ts!==ts); saveLog(); renderLog();
+}
+
 function renderLog(){
   const el=document.getElementById('log-list');
-  if(!log.length){el.innerHTML='<div class="log-empty">記録なし</div>';return;}
+  const clearBtn=document.getElementById('clear-all-btn');
+  if(!log.length){
+    el.innerHTML='<div class="log-empty">記録なし</div>';
+    if(clearBtn) clearBtn.style.display='none';
+    return;
+  }
+  if(clearBtn) clearBtn.style.display='inline-block';
   el.innerHTML='';
   log.forEach(rec=>{
     const s=rec.total;
     const row=document.createElement('div'); row.className='log-row';
-    row.onclick=()=>{buildResult(rec);show('result');};
-    row.innerHTML=`<div class="log-left"><div class="ini">${h(rec.ini)}</div><div class="dt">${fmtDT(rec.dt)}</div></div><div class="log-right"><div class="log-sc">${s}<span style="font-size:.68rem;font-weight:400;color:var(--muted)"> /18</span></div></div>`;
+    // 左エリア（タップで結果表示）
+    const left=document.createElement('div'); left.className='log-left'; left.style.flex='1'; left.style.cursor='pointer';
+    left.innerHTML=`<div class="ini">${h(rec.ini)}</div><div class="dt">${fmtDT(rec.dt)}</div>`;
+    left.onclick=()=>{buildResult(rec);show('result');};
+    // 右エリア（スコア＋削除ボタン）
+    const right=document.createElement('div'); right.className='log-right'; right.style.display='flex'; right.style.alignItems='center'; right.style.gap='.5rem';
+    const score=document.createElement('div'); score.className='log-sc';
+    score.innerHTML=`${s}<span style="font-size:.68rem;font-weight:400;color:var(--muted)"> /18</span>`;
+    const del=document.createElement('button');
+    del.textContent='🗑️';
+    del.style.cssText='background:none;border:none;font-size:1rem;cursor:pointer;padding:4px;opacity:.5;';
+    del.onclick=(e)=>{e.stopPropagation(); deleteOneLog(rec.ts);};
+    right.appendChild(score); right.appendChild(del);
+    row.appendChild(left); row.appendChild(right);
     el.appendChild(row);
   });
 }
