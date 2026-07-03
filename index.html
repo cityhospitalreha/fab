@@ -10,18 +10,39 @@
 <meta name="theme-color" content="#7C3AED">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
+<script>
+try{
+  if(localStorage.getItem('fab_theme')==='dark') document.documentElement.setAttribute('data-theme','dark');
+}catch(e){}
+</script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
-  --bg:#F2F3F7;--white:#FFF;--ink:#1A1A1A;--muted:#9A9A9F;--line:#E0E2EA;
+  --bg:#F2F3F7;--white:#FFF;--ink:#1A1A1A;--ink2:#4B4C52;--muted:#9A9A9F;--line:#E0E2EA;
   --accent:#7C3AED;--on:#7C3AED;--on-lt:#F5F3FF;
   --green:#15803D;--green-lt:#F0FDF4;
   --amber:#B45309;--amber-lt:#FFFBEB;
   --red:#B91C1C;--red-lt:#FEF2F2;
+  --rec:#DC2626;
+}
+:root[data-theme="dark"]{
+  --bg:#17181C;--white:#212227;--ink:#EDEDF0;--ink2:#C7C8CF;--muted:#8B8D93;--line:#33343A;
+  --accent:#A78BFA;--on:#A78BFA;--on-lt:#2A2140;
+  --green:#4ADE80;--green-lt:#123321;
+  --amber:#FBBF24;--amber-lt:#3A2A0A;
+  --red:#F87171;--red-lt:#3A1414;
+  --rec:#F87171;
 }
 html,body{height:100%;background:var(--bg);font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic UI",sans-serif;color:var(--ink);}
 .screen{display:none;flex-direction:column;align-items:center;min-height:100%;padding-bottom:1rem;}
 .screen.active{display:flex;}
+.theme-btn{
+  position:fixed;top:.7rem;right:.7rem;z-index:50;
+  width:34px;height:34px;border-radius:50%;
+  background:var(--white);border:1.5px solid var(--line);color:var(--ink);
+  font-size:15px;display:flex;align-items:center;justify-content:center;cursor:pointer;
+}
+.theme-btn:active{opacity:.6;}
 
 /* HOME */
 #home{padding:0 1rem;}
@@ -147,14 +168,14 @@ html,body{height:100%;background:var(--bg);font-family:"Hiragino Kaku Gothic Pro
 .rec-box{background:var(--bg);border-radius:10px;padding:.55rem .75rem;margin:.1rem 0 .3rem;display:flex;flex-direction:column;gap:.4rem;}
 .rec-row{display:flex;align-items:center;gap:.4rem;}
 .rec-btn{height:36px;padding:0 14px;border-radius:8px;border:1.5px solid var(--line);background:var(--white);font-family:inherit;font-size:.78rem;font-weight:700;color:var(--ink);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.3rem;transition:all .15s;}
-.rec-btn.rec-start{background:#DC2626;border-color:#DC2626;color:#fff;}
+.rec-btn.rec-start{background:var(--rec);border-color:var(--rec);color:#fff;}
 .rec-btn.rec-stop{background:var(--amber-lt);border-color:var(--amber);color:var(--amber);}
 .rec-btn.rec-del{color:var(--muted);font-size:.72rem;}
 .rec-btn.rec-save{background:var(--green-lt);border-color:var(--green);color:var(--green);}
 .rec-dot{width:8px;height:8px;border-radius:50%;background:#fff;animation:blink 1s infinite;}
 @keyframes blink{0%,100%{opacity:1;}50%{opacity:.2;}}
 .rec-status{font-size:.72rem;color:var(--muted);}
-.rec-status.recording{color:#DC2626;font-weight:700;}
+.rec-status.recording{color:var(--rec);font-weight:700;}
 .rec-audio{width:100%;height:36px;accent-color:var(--accent);}
 
 /* NORM TABLE */
@@ -168,6 +189,8 @@ html,body{height:100%;background:var(--bg);font-family:"Hiragino Kaku Gothic Pro
 </style>
 </head>
 <body>
+
+<button class="theme-btn" id="btn-theme" onclick="toggleTheme()">🌙</button>
 
 <div class="screen active" id="home">
   <div class="home-hdr"><h1>FAB</h1><span class="sub">前頭葉機能検査</span></div>
@@ -219,6 +242,32 @@ html,body{height:100%;background:var(--bg);font-family:"Hiragino Kaku Gothic Pro
 </div>
 
 <script>
+// ---- ダーク/ライトテーマ切替 ----
+function applyTheme(t){
+  const root=document.documentElement;
+  const btn=document.getElementById('btn-theme');
+  if(t==='dark'){
+    root.setAttribute('data-theme','dark');
+    btn.textContent='☀️';
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#17181C');
+  } else {
+    root.removeAttribute('data-theme');
+    btn.textContent='🌙';
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#7C3AED');
+  }
+}
+function toggleTheme(){
+  const isDark=document.documentElement.getAttribute('data-theme')==='dark';
+  const next=isDark?'light':'dark';
+  applyTheme(next);
+  try{ localStorage.setItem('fab_theme',next); }catch(e){}
+}
+(function(){
+  let saved='light';
+  try{ saved=localStorage.getItem('fab_theme')||'light'; }catch(e){}
+  applyTheme(saved);
+})();
+
 const TOTAL = 18;
 const SECS = [
   { label:'①  類似性（概念化）', items:[
